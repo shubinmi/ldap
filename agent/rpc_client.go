@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/shubinmi/ldap"
@@ -216,7 +217,8 @@ func (r *rpcClient) unitUsers(params string) (data string, err error) {
 	if err != nil {
 		return
 	}
-	sc, err := r.client.OUUsers(rUsers.ID, rUsers.Pag.PerPage)
+	ouNames := strings.Split(rUsers.ID, ",")
+	sc, err := r.client.OUUsers(rUsers.Pag.PerPage, ouNames...)
 	if err != nil {
 		return
 	}

@@ -318,7 +318,7 @@ func TestClient_OUUsers(t *testing.T) {
 		tt := test
 		t.Run(tt.name, func(t *testing.T) {
 			c := tt.fields.cl
-			got, err := c.OUUsers(tt.args.ouName, tt.args.pageSize)
+			got, err := c.OUUsers(tt.args.pageSize, tt.args.ouName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OUUsers() error = %v, wantErr %v", err, tt.wantErr)
 				return

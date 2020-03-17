@@ -105,7 +105,7 @@ func (c *Client) GroupUsers(nodeDN string, pageSize uint32) (ResultsScanner, err
 	return sc, nil
 }
 
-func (c *Client) OUUsers(ouName string, pageSize uint32) (ResultsScanner, error) {
+func (c *Client) OUUsers(pageSize uint32, ouNames ...string) (ResultsScanner, error) {
 	if c.isClosed() {
 		return nil, errors.New("client is closed")
 	}
@@ -115,18 +115,35 @@ func (c *Client) OUUsers(ouName string, pageSize uint32) (ResultsScanner, error)
 		"(&(objectCategory=person)(objectClass=user))",
 		mapper)
 	sc := newScanner(f)
+	cashRestResults := make([]User, 0, allUsersPageSize)
+
 	uf := func() (interface{}, error) {
 		users := make([]interface{}, 0, pageSize)
 		res := make([]User, 0, allUsersPageSize)
 	LOOP:
-		for sc.Next() {
-			sc.Scan(UsersSetter(&res))
-			for _, u := range res {
-				if !strings.Contains(strings.ToLower(u.DN), strings.ToLower("ou="+ouName+",")) {
+		for len(cashRestResults) > 0 || sc.Next() {
+			if len(cashRestResults) > 0 {
+				res = append(res, cashRestResults...)
+				cashRestResults = []User{}
+			} else {
+				sc.Scan(UsersSetter(&res))
+			}
+			for i, u := range res {
+				has := false
+				for _, ouName := range ouNames {
+					ouName = strings.TrimSpace(ouName)
+					if strings.Contains(strings.ToLower(u.DN), strings.ToLower("ou="+ouName+",")) {
+						has = true
+					}
+				}
+				if !has {
 					continue
 				}
 				users = append(users, u)
 				if len(users) == int(pageSize) {
+					if i+1 < len(res) {
+						cashRestResults = res[i+1:]
+					}
 					break LOOP
 				}
 			}
