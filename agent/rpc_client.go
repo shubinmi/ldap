@@ -18,6 +18,7 @@ const (
 	RPCGroupsMethod     = "groups"
 	RPCUnitsMethod      = "units"
 	RPCSearchMethod     = "search"
+	RPCPingMethod       = "ping"
 	RPCGroupUsersMethod = "groupUsers"
 	RPCUnitUsersMethod  = "unitUsers"
 )
@@ -27,6 +28,11 @@ type rpcOpt func(r *rpcClient)
 func WithAuth() func(r *rpcClient) {
 	return func(r *rpcClient) {
 		r.funcs[RPCAuthMethod] = r.auth
+	}
+}
+func WithPing() func(r *rpcClient) {
+	return func(r *rpcClient) {
+		r.funcs[RPCPingMethod] = r.ping
 	}
 }
 func WithGroups() func(r *rpcClient) {
@@ -65,6 +71,10 @@ func DefaultRPCFuncs(client *ldap.Client, ops ...rpcOpt) map[string]RPCFunc {
 		f(rcl)
 	}
 	return rcl.funcs
+}
+
+func (r *rpcClient) ping(_ string) (string, error) {
+	return "", r.client.Ping()
 }
 
 func (r *rpcClient) auth(params string) (data string, err error) {
@@ -217,7 +227,7 @@ func (r *rpcClient) unitUsers(params string) (data string, err error) {
 	if err != nil {
 		return
 	}
-	ouNames := strings.Split(rUsers.ID, ",")
+	ouNames := strings.Split(rUsers.ID, ";")
 	sc, err := r.client.OUUsers(rUsers.Pag.PerPage, ouNames...)
 	if err != nil {
 		return

@@ -46,7 +46,7 @@ func TestLdapServer_RPC(t *testing.T) {
 	}
 	defer ldapCl.Close()
 	rpc := DefaultRPCFuncs(ldapCl,
-		WithAuth(), WithGroups(), WithSearch(),
+		WithAuth(), WithGroups(), WithSearch(), WithPing(),
 		WithOrganizationalUnits(), WithGroupUsers(), WithUnitUsers())
 	client, err := Client(viper.GetString("ldap.url"),
 		":8888", "/ws", rpc)

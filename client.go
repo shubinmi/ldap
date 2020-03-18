@@ -59,6 +59,10 @@ func New(ctx context.Context, fs ...optF) (*Client, error) {
 	return cl, nil
 }
 
+func (c *Client) Ping() error {
+	return c.bindAdmin()
+}
+
 func (c *Client) Auth(usr, pass string) (user User, err error) {
 	if c.isClosed() {
 		err = errors.New("client is closed")
