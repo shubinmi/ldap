@@ -136,8 +136,8 @@ func (c *Client) OUUsers(pageSize uint32, ouNames ...string) (ResultsScanner, er
 			for i, u := range res {
 				has := false
 				for _, ouName := range ouNames {
-					ouName = strings.TrimSpace(ouName)
-					if strings.Contains(strings.ToLower(u.DN), strings.ToLower("ou="+ouName+",")) {
+					ouName = strings.ToLower(strings.TrimSpace(ouName))
+					if strings.Contains(strings.ToLower(u.MemberOf), ouName) {
 						has = true
 					}
 				}
@@ -209,43 +209,6 @@ func (c *Client) OrganizationalUnits(pageSize uint32) (ResultsScanner, error) {
 	return sc, nil
 }
 
-func (c *Client) retriever(pageSize uint32, query string,
-	mapper func(entry *ldap.Entry) interface{}) func() (interface{}, error) {
-	pagingControl := ldap.NewControlPaging(pageSize)
-	searchRequest := c.searchRequest(query, pagingControl)
-	return func() (interface{}, error) {
-		var (
-			err error
-			sr  *ldap.SearchResult
-		)
-		search := func() (done chan struct{}) {
-			done = make(chan struct{})
-			go func() {
-				defer close(done)
-				sr, err = c.con.Search(searchRequest)
-			}()
-			return
-		}
-		err = errs.Merge(err, c.concurrentDo(search))
-		if err != nil {
-			return nil, errors.Wrap(err, "ldap retriever in search")
-		}
-		items := make([]interface{}, 0, len(sr.Entries))
-		for _, e := range sr.Entries {
-			items = append(items, mapper(e))
-		}
-
-		var er error
-		updatedControl := ldap.FindControl(sr.Controls, ldap.ControlTypePaging)
-		if ctrl, ok := updatedControl.(*ldap.ControlPaging); ctrl != nil && ok && len(ctrl.Cookie) != 0 {
-			pagingControl.SetCookie(ctrl.Cookie)
-		} else {
-			er = errs.NothingToDo{}
-		}
-		return items, er
-	}
-}
-
 func (c *Client) Groups(pageSize uint32) (ResultsScanner, error) {
 	if c.isClosed() {
 		return nil, errors.New("client is closed")
@@ -284,6 +247,43 @@ func (c *Client) SearchByLogon(loginName string) (user User, err error) {
 		return
 	}
 	return mapToUser(sr.Entries[0]), nil
+}
+
+func (c *Client) retriever(pageSize uint32, query string,
+	mapper func(entry *ldap.Entry) interface{}) func() (interface{}, error) {
+	pagingControl := ldap.NewControlPaging(pageSize)
+	searchRequest := c.searchRequest(query, pagingControl)
+	return func() (interface{}, error) {
+		var (
+			err error
+			sr  *ldap.SearchResult
+		)
+		search := func() (done chan struct{}) {
+			done = make(chan struct{})
+			go func() {
+				defer close(done)
+				sr, err = c.con.Search(searchRequest)
+			}()
+			return
+		}
+		err = errs.Merge(err, c.concurrentDo(search))
+		if err != nil {
+			return nil, errors.Wrap(err, "ldap retriever in search")
+		}
+		items := make([]interface{}, 0, len(sr.Entries))
+		for _, e := range sr.Entries {
+			items = append(items, mapper(e))
+		}
+
+		var er error
+		updatedControl := ldap.FindControl(sr.Controls, ldap.ControlTypePaging)
+		if ctrl, ok := updatedControl.(*ldap.ControlPaging); ctrl != nil && ok && len(ctrl.Cookie) != 0 {
+			pagingControl.SetCookie(ctrl.Cookie)
+		} else {
+			er = errs.NothingToDo{}
+		}
+		return items, er
+	}
 }
 
 func (c *Client) concurrentDo(f concurrentFunc) (err error) {

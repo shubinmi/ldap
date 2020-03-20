@@ -76,5 +76,6 @@ func mapToUser(ent *ldap.Entry) (u User) {
 	exec.UntilSuccess(fs...)
 	u.DN = ent.DN
 	u.CN = ent.GetAttributeValue("cn")
+	u.MemberOf = ent.GetAttributeValue("memberOf")
 	return
 }

@@ -14,10 +14,11 @@ type Unit struct {
 }
 
 type User struct {
-	Name  string
-	DN    string
-	CN    string
-	Mail  string
-	Phone string
-	Logon string
+	Name     string
+	DN       string
+	CN       string
+	Mail     string
+	Phone    string
+	Logon    string
+	MemberOf string
 }
