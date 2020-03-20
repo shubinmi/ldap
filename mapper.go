@@ -2,6 +2,8 @@ package ldap
 
 // noinspection GoRedundantImportAlias
 import (
+	"fmt"
+
 	ldap "github.com/go-ldap/ldap/v3"
 	"github.com/shubinmi/util/exec"
 )
@@ -76,6 +78,6 @@ func mapToUser(ent *ldap.Entry) (u User) {
 	exec.UntilSuccess(fs...)
 	u.DN = ent.DN
 	u.CN = ent.GetAttributeValue("cn")
-	u.MemberOf = ent.GetAttributeValue("memberOf")
+	u.MemberOf = fmt.Sprintf("%v", ent.GetAttributeValues("memberOf"))
 	return
 }
