@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	ldap "github.com/go-ldap/ldap/v3"
@@ -286,7 +287,7 @@ func (c *Client) SearchByLogon(loginName string) (user User, err error) {
 }
 
 func (c *Client) concurrentDo(f concurrentFunc) (err error) {
-	i := 0
+	var i int32
 Retry:
 	if c.isClosed() {
 		return errors.New("client is closed")
@@ -305,11 +306,7 @@ Retry:
 	}
 	c.comCh <- wrap
 	<-done
-	if ldap.IsErrorWithCode(err, ldap.ErrorNetwork) && i < 3 {
-		err = nil
-		i++
-		c.con.Start()
-		time.Sleep(sleepTimeout)
+	if c.needRetry(err, &i) {
 		goto Retry
 	}
 	return
@@ -349,6 +346,8 @@ func (c *Client) bindAdmin() (err error) {
 	if c.isClosed() {
 		return errors.New("client is closed")
 	}
+	var i int32
+Retry:
 	done := make(chan struct{})
 	go func() {
 		err = c.con.Bind(c.opt.usr, c.opt.pass)
@@ -359,5 +358,18 @@ func (c *Client) bindAdmin() (err error) {
 		err = errors.New("bindAdmin timeout")
 	case <-done:
 	}
+	if c.needRetry(err, &i) {
+		goto Retry
+	}
 	return
+}
+
+func (c *Client) needRetry(err error, trying *int32) bool {
+	if err == nil || !ldap.IsErrorWithCode(err, ldap.ErrorNetwork) && *trying >= 3 {
+		return false
+	}
+	atomic.AddInt32(trying, 1)
+	c.con.Start()
+	time.Sleep(sleepTimeout)
+	return true
 }
