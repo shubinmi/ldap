@@ -137,7 +137,8 @@ func (c *Client) OUUsers(pageSize uint32, ouNames ...string) (ResultsScanner, er
 				has := false
 				for _, ouName := range ouNames {
 					ouName = strings.ToLower(strings.TrimSpace(ouName))
-					if strings.Contains(strings.ToLower(u.MemberOf), ouName) {
+					if strings.Contains(strings.ToLower(u.DN), ouName) ||
+						strings.Contains(strings.ToLower(u.MemberOf), ouName) {
 						has = true
 						break
 					}
