@@ -290,6 +290,12 @@ func (c *Client) retriever(pageSize uint32, query string,
 
 func (c *Client) concurrentDo(f concurrentFunc) (err error) {
 	var i int32
+	defer func() {
+		if e := recover(); e != nil {
+			c.reconnect()
+			err = errors.New(fmt.Sprintf("recovered in concurrentDo = %v", e))
+		}
+	}()
 Retry:
 	if c.isClosed() {
 		return errors.New("client is closed")
@@ -348,6 +354,12 @@ func (c *Client) bindAdmin() (err error) {
 	if c.isClosed() {
 		return errors.New("client is closed")
 	}
+	defer func() {
+		if e := recover(); e != nil {
+			err = errors.New(fmt.Sprintf("recovered in bindAdmin = %v", e))
+			c.reconnect()
+		}
+	}()
 	var i int32
 Retry:
 	done := make(chan struct{})
@@ -371,7 +383,11 @@ func (c *Client) needRetry(err error, trying *int32) bool {
 		return false
 	}
 	atomic.AddInt32(trying, 1)
+	c.reconnect()
+	return true
+}
+
+func (c *Client) reconnect() {
 	c.con.Start()
 	time.Sleep(sleepTimeout)
-	return true
 }
