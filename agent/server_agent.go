@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -48,6 +49,7 @@ func newAgentServer() *agentServer {
 }
 
 func (a *agentServer) Send(id string, msg LdapMsg, response chan<- LdapResp) (err error) {
+	id = strings.ToLower(strings.TrimSpace(id))
 	if msg.GUID == "" {
 		msg.GUID = uuid.NewV4().String()
 	}
@@ -98,6 +100,7 @@ func (a *agentServer) Handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "empty identify header", http.StatusBadRequest)
 		return
 	}
+	id = strings.ToLower(strings.TrimSpace(id))
 	wsUp := websocket.Upgrader{
 		ReadBufferSize:  maxMsgSize,
 		WriteBufferSize: maxMsgSize,
@@ -110,7 +113,11 @@ func (a *agentServer) Handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		if e := conn.Close(); e != nil {
+			log.Println("close conn", e)
+		}
+	}()
 
 	defer func() {
 		if r := recover(); r != nil {
