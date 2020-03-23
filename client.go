@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,6 +21,7 @@ const (
 
 type Client struct {
 	closed bool
+	mtx    *sync.Mutex
 	con    *ldap.Conn
 	opt    *opt
 	comCh  chan concurrentFunc
@@ -90,6 +92,8 @@ func (c *Client) Auth(usr, pass string) (user User, err error) {
 }
 
 func (c *Client) Close() {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	if c.isClosed() {
 		return
 	}
