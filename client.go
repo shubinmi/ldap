@@ -53,7 +53,7 @@ func New(ctx context.Context, fs ...optF) (*Client, error) {
 	if opt.debug {
 		l.Debug.Enable(true)
 	}
-	cl := &Client{con: l, opt: opt}
+	cl := &Client{con: l, opt: opt, mtx: &sync.Mutex{}}
 	err = cl.bindAdmin()
 	if err != nil {
 		return nil, err
@@ -93,14 +93,19 @@ func (c *Client) Auth(usr, pass string) (user User, err error) {
 }
 
 func (c *Client) Close() {
+	defer func() {
+		if e := recover(); e != nil {
+			log.Println("recover on Close()", e)
+		}
+	}()
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 	if c.isClosed() {
 		return
 	}
 	c.closed = true
-	c.con.Close()
 	close(c.comCh)
+	c.con.Close()
 }
 
 func (c *Client) GroupUsers(nodeDN string, pageSize uint32) (ResultsScanner, error) {
