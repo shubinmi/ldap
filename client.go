@@ -4,6 +4,7 @@ package ldap
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"strings"
 	"sync"
@@ -383,7 +384,7 @@ Retry:
 }
 
 func (c *Client) needRetry(err error, trying *int32) bool {
-	if err == nil || !ldap.IsErrorWithCode(err, ldap.ErrorNetwork) && *trying >= 3 {
+	if err == nil || !ldap.IsErrorWithCode(err, ldap.ErrorNetwork) && *trying >= 10 {
 		return false
 	}
 	atomic.AddInt32(trying, 1)
@@ -392,6 +393,11 @@ func (c *Client) needRetry(err error, trying *int32) bool {
 }
 
 func (c *Client) reconnect() {
+	defer func() {
+		if e := recover(); e != nil {
+			log.Println("recover on reconnect()", e)
+		}
+	}()
 	c.con.Start()
 	time.Sleep(sleepTimeout)
 }
